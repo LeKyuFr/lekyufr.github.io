@@ -1,3 +1,248 @@
+// GitHub API configuration
+const GITHUB_USERNAME = 'LeKyuFr';
+const GITHUB_API_URL = `https://api.github.com/users/${GITHUB_USERNAME}/repos`;
+
+// Language colors for project cards
+const languageColors = {
+    'JavaScript': '#f1e05a',
+    'TypeScript': '#3178c6',
+    'Python': '#3776ab',
+    'Java': '#b07219',
+    'C#': '#239120',
+    'C++': '#f34b7d',
+    'C': '#555555',
+    'PHP': '#777bb4',
+    'Ruby': '#701516',
+    'Go': '#00add8',
+    'Rust': '#dea584',
+    'Swift': '#fa7343',
+    'Kotlin': '#a97bff',
+    'Dart': '#00b4ab',
+    'HTML': '#e34c26',
+    'CSS': '#1572b6',
+    'Vue': '#4fc08d',
+    'React': '#61dafb',
+    'Angular': '#dd0031',
+    'Node.js': '#68a063',
+    'Express': '#000000',
+    'MongoDB': '#47a248',
+    'MySQL': '#4479a1',
+    'PostgreSQL': '#336791',
+    'Docker': '#2496ed',
+    'Kubernetes': '#326ce5'
+};
+
+// Project icons based on keywords in name/description
+const getProjectIcon = (name, description, language) => {
+    const text = (name + ' ' + (description || '')).toLowerCase();
+    
+    if (text.includes('bot') || text.includes('discord')) return 'fas fa-robot';
+    if (text.includes('web') || text.includes('site')) return 'fas fa-globe';
+    if (text.includes('api') || text.includes('backend')) return 'fas fa-server';
+    if (text.includes('mobile') || text.includes('android') || text.includes('ios')) return 'fas fa-mobile-alt';
+    if (text.includes('game') || text.includes('jeu')) return 'fas fa-gamepad';
+    if (text.includes('dashboard') || text.includes('admin')) return 'fas fa-chart-line';
+    if (text.includes('blog') || text.includes('cms')) return 'fas fa-blog';
+    if (text.includes('ecommerce') || text.includes('shop')) return 'fas fa-shopping-cart';
+    if (text.includes('chat') || text.includes('message')) return 'fas fa-comments';
+    if (text.includes('tool') || text.includes('utility')) return 'fas fa-tools';
+    if (text.includes('library') || text.includes('package')) return 'fas fa-box';
+    
+    // Default icons based on language
+    if (language === 'Python') return 'fab fa-python';
+    if (language === 'JavaScript' || language === 'TypeScript') return 'fab fa-js-square';
+    if (language === 'Java') return 'fab fa-java';
+    if (language === 'PHP') return 'fab fa-php';
+    if (language === 'C#') return 'fas fa-code';
+    
+    return 'fas fa-code';
+};
+
+// Get project category based on language and description
+const getProjectCategory = (language, description, topics) => {
+    const text = (description || '').toLowerCase();
+    const allTopics = topics ? topics.join(' ').toLowerCase() : '';
+    const name = (description || '').toLowerCase();
+    
+    if (text.includes('web') || allTopics.includes('web') || text.includes('website')) return { name: 'Web', color: 'bg-blue-500' };
+    if (text.includes('mobile') || allTopics.includes('mobile')) return { name: 'Mobile', color: 'bg-green-500' };
+    if (text.includes('api') || allTopics.includes('api') || text.includes('backend')) return { name: 'API', color: 'bg-purple-500' };
+    if (text.includes('bot') || allTopics.includes('bot') || text.includes('discord')) return { name: 'Bot', color: 'bg-red-500' };
+    if (text.includes('game') || allTopics.includes('game') || text.includes('jeu')) return { name: 'Game', color: 'bg-yellow-500' };
+    if (text.includes('tool') || allTopics.includes('tool') || text.includes('utility')) return { name: 'Tool', color: 'bg-cyan-500' };
+    if (allTopics.includes('library') || text.includes('library')) return { name: 'Library', color: 'bg-pink-500' };
+    if (text.includes('dashboard') || text.includes('admin')) return { name: 'Dashboard', color: 'bg-indigo-500' };
+    
+    // Default based on language
+    if (language === 'Python') return { name: 'Python', color: 'bg-yellow-600' };
+    if (language === 'JavaScript' || language === 'TypeScript') return { name: 'JavaScript', color: 'bg-yellow-500' };
+    if (language === 'Java') return { name: 'Java', color: 'bg-orange-500' };
+    if (language === 'PHP') return { name: 'PHP', color: 'bg-purple-600' };
+    if (language === 'HTML') return { name: 'Web', color: 'bg-blue-500' };
+    if (language === 'CSS') return { name: 'Web', color: 'bg-blue-500' };
+    if (language === 'C#') return { name: 'C#', color: 'bg-green-600' };
+    if (language === 'C++') return { name: 'C++', color: 'bg-blue-600' };
+    
+    return { name: 'Project', color: 'bg-gray-500' };
+};
+
+// Fetch GitHub repositories
+async function fetchGitHubProjects() {
+    const loadingElement = document.getElementById('projects-loading');
+    const containerElement = document.getElementById('projects-container');
+    const errorElement = document.getElementById('projects-error');
+    
+    try {
+        loadingElement.classList.remove('hidden');
+        containerElement.classList.add('hidden');
+        errorElement.classList.add('hidden');
+        
+        const response = await fetch(`${GITHUB_API_URL}?sort=updated&per_page=12`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const repos = await response.json();
+        
+        console.log(`Fetched ${repos.length} repositories from GitHub`);
+        
+        // Filter out forked repos and private repos, but keep repos even without description
+        const filteredRepos = repos.filter(repo => 
+            !repo.fork && 
+            !repo.private &&
+            repo.name !== GITHUB_USERNAME && // Exclude profile README repo
+            repo.name !== 'lekyufr.github.io' // Exclude GitHub Pages repo (optional)
+        ).slice(0, 9); // Limit to 9 projects for nice grid
+        
+        console.log(`Filtered to ${filteredRepos.length} repositories`, filteredRepos.map(r => r.name));
+        
+        if (filteredRepos.length === 0) {
+            // Show all repos if filtering is too strict
+            const allPublicRepos = repos.filter(repo => !repo.private).slice(0, 6);
+            if (allPublicRepos.length > 0) {
+                displayProjects(allPublicRepos);
+                loadingElement.classList.add('hidden');
+                containerElement.classList.remove('hidden');
+                return;
+            }
+            throw new Error('Aucun projet trouvé');
+        }
+        
+        displayProjects(filteredRepos);
+        
+        loadingElement.classList.add('hidden');
+        containerElement.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error fetching GitHub projects:', error);
+        loadingElement.classList.add('hidden');
+        errorElement.classList.remove('hidden');
+    }
+}
+
+// Display projects in the container
+function displayProjects(repos) {
+    const container = document.getElementById('projects-container');
+    container.innerHTML = '';
+    
+    repos.forEach(repo => {
+        const category = getProjectCategory(repo.language, repo.description, repo.topics);
+        const icon = getProjectIcon(repo.name, repo.description, repo.language);
+        const languageColor = languageColors[repo.language] || '#6b7280';
+        
+        // Format date
+        const updatedDate = new Date(repo.updated_at).toLocaleDateString('fr-FR', {
+            year: 'numeric',
+            month: 'short'
+        });
+        
+        // Create gradient based on language color
+        const gradientStyle = `background: linear-gradient(135deg, ${languageColor}30, ${languageColor}20)`;
+        
+        const projectCard = document.createElement('div');
+        projectCard.className = 'bg-slate-900 rounded-lg overflow-hidden hover:transform hover:scale-105 transition-all duration-300 group project-card';
+        
+        projectCard.innerHTML = `
+            <div class="h-48 relative overflow-hidden" style="${gradientStyle}">
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <i class="${icon} text-6xl text-white/80 project-icon"></i>
+                </div>
+                <div class="absolute top-4 right-4">
+                    <span class="${category.color} px-3 py-1 rounded-full text-sm text-white">${category.name}</span>
+                </div>
+                <div class="absolute bottom-4 left-4">
+                    <div class="flex items-center text-white/70 text-sm">
+                        <i class="fas fa-star mr-1"></i>
+                        <span>${repo.stargazers_count}</span>
+                        <i class="fas fa-code-branch ml-3 mr-1"></i>
+                        <span>${repo.forks_count}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6">
+                <h3 class="text-xl font-bold mb-3">${repo.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h3>
+                <p class="text-slate-400 mb-4 line-clamp-3">
+                    ${repo.description || `Projet ${repo.language || 'de développement'} - Consultez le repository pour plus d'informations.`}
+                </p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    ${repo.language ? `<span class="bg-slate-700 px-2 py-1 rounded text-sm flex items-center">
+                        <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${languageColor}"></div>
+                        ${repo.language}
+                    </span>` : ''}
+                    ${repo.topics && repo.topics.length > 0 ? 
+                        repo.topics.slice(0, 2).map(topic => 
+                            `<span class="bg-slate-700 px-2 py-1 rounded text-sm">${topic}</span>`
+                        ).join('') : ''
+                    }
+                    ${repo.size > 0 ? `<span class="bg-slate-600 px-2 py-1 rounded text-sm">${(repo.size / 1024).toFixed(1)} MB</span>` : ''}
+                </div>
+                <div class="flex justify-between items-center">
+                    <div class="flex gap-3">
+                        ${repo.homepage ? 
+                            `<a href="${repo.homepage}" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-secondary transition-colors project-link">
+                                <i class="fas fa-external-link-alt"></i> Demo
+                            </a>` : ''
+                        }
+                        <a href="${repo.html_url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-secondary transition-colors project-link">
+                            <i class="fab fa-github"></i> Code
+                        </a>
+                    </div>
+                    <span class="text-slate-500 text-sm">${updatedDate}</span>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(projectCard);
+    });
+    
+    // Re-apply project card effects
+    applyProjectEffects();
+}
+
+// Apply hover effects to project cards
+function applyProjectEffects() {
+    document.querySelectorAll('.project-card').forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const rotateX = (y - centerY) / 10;
+            const rotateY = -(x - centerX) / 10;
+            
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
+        });
+        
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
+        });
+    });
+}
+
 // Mobile menu toggle
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
 const mobileMenu = document.getElementById('mobile-menu');
@@ -122,47 +367,6 @@ progressBars.forEach(bar => {
     progressObserver.observe(bar);
 });
 
-// Form submission
-const contactForm = document.querySelector('#contact form');
-if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        // Get form data
-        const formData = new FormData(contactForm);
-        const name = formData.get('name') || contactForm.querySelector('input[placeholder="Votre nom"]').value;
-        const email = formData.get('email') || contactForm.querySelector('input[placeholder="votre@email.com"]').value;
-        const subject = formData.get('subject') || contactForm.querySelector('input[placeholder="Sujet de votre message"]').value;
-        const message = formData.get('message') || contactForm.querySelector('textarea').value;
-        
-        // Basic validation
-        if (!name || !email || !subject || !message) {
-            alert('Veuillez remplir tous les champs');
-            return;
-        }
-        
-        // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            alert('Veuillez entrer une adresse email valide');
-            return;
-        }
-        
-        // Simulate form submission
-        const submitBtn = contactForm.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Envoi en cours...';
-        submitBtn.disabled = true;
-        
-        setTimeout(() => {
-            alert('Message envoyé avec succès ! Je vous répondrai bientôt.');
-            contactForm.reset();
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-        }, 2000);
-    });
-}
-
 // Skills hover effects
 document.querySelectorAll('.group').forEach(skillCard => {
     skillCard.addEventListener('mouseenter', () => {
@@ -232,6 +436,15 @@ const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
 
 // Add some additional interactive features
 document.addEventListener('DOMContentLoaded', () => {
+    // Load GitHub projects
+    fetchGitHubProjects();
+    
+    // Retry button for projects
+    const retryButton = document.getElementById('retry-projects');
+    if (retryButton) {
+        retryButton.addEventListener('click', fetchGitHubProjects);
+    }
+    
     // Add ripple effect to buttons
     document.querySelectorAll('button, .bg-primary').forEach(button => {
         button.addEventListener('click', function(e) {
