@@ -1,6 +1,7 @@
 // GitHub API configuration
 const GITHUB_USERNAME = 'LeKyuFr';
 const GITHUB_API_URL = `https://api.github.com/users/${GITHUB_USERNAME}/repos`;
+const GITHUB_USER_API_URL = `https://api.github.com/users/${GITHUB_USERNAME}`;
 
 // Language colors for project cards
 const languageColors = {
@@ -85,6 +86,107 @@ const getProjectCategory = (language, description, topics) => {
     
     return { name: 'Project', color: 'bg-gray-500' };
 };
+
+// Fetch GitHub user profile
+async function fetchGitHubProfile() {
+    try {
+        const response = await fetch(GITHUB_USER_API_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const user = await response.json();
+        
+        // Update profile image in about section
+        const profileImage = document.querySelector('#about .w-32.h-32');
+        if (profileImage && user.avatar_url) {
+            // Add loading effect
+            profileImage.innerHTML = `
+                <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/30 relative">
+                    <img src="${user.avatar_url}" alt="Photo de profil LeKyuFr" 
+                         class="w-full h-full object-cover transition-opacity duration-500 opacity-0"
+                         onload="this.style.opacity='1'"
+                         onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full bg-primary flex items-center justify-center\\'>
+                         <i class=\\'fas fa-code text-4xl text-white\\'></i></div>'">
+                    <div class="absolute inset-0 bg-primary/20 animate-pulse"></div>
+                </div>
+            `;
+            profileImage.classList.remove('bg-primary', 'flex', 'items-center', 'justify-center');
+        }
+        
+        // Update name and title with GitHub data
+        const nameElement = profileImage?.parentElement?.querySelector('.text-lg.font-semibold');
+        const titleElement = profileImage?.parentElement?.querySelector('.text-slate-400');
+        
+        if (nameElement && user.name) {
+            nameElement.textContent = user.name;
+        }
+        
+        if (titleElement && user.bio) {
+            titleElement.textContent = user.bio;
+        }
+        
+        // Update location if available
+        if (user.location) {
+            const locationDiv = document.createElement('p');
+            locationDiv.className = 'text-slate-500 text-sm mt-2';
+            locationDiv.innerHTML = `<i class="fas fa-map-marker-alt mr-1"></i>${user.location}`;
+            titleElement?.parentElement?.appendChild(locationDiv);
+        }
+        
+        // Update main bio section with more detailed info
+        const bioElements = document.querySelectorAll('#about .text-slate-300');
+        if (bioElements.length > 0 && user.bio) {
+            bioElements[0].innerHTML = `
+                ${user.bio}<br><br>
+                Depuis ${new Date(user.created_at).getFullYear()}, je contribue activement 
+                à la communauté open source avec ${user.public_repos} repositories publics.
+            `;
+        }
+        
+        // Update follower/following stats
+        const statsContainer = document.querySelector('#about .grid.grid-cols-2');
+        if (statsContainer && user.public_repos) {
+            // Add GitHub stats card
+            const statsCard = document.createElement('div');
+            statsCard.className = 'bg-slate-700 p-4 rounded-lg md:col-span-2';
+            statsCard.innerHTML = `
+                <i class="fab fa-github text-primary text-2xl mb-2"></i>
+                <h4 class="font-semibold mb-1">GitHub Stats</h4>
+                <div class="grid grid-cols-3 gap-4 text-sm text-slate-400">
+                    <div class="text-center">
+                        <div class="font-bold text-white">${user.public_repos}</div>
+                        <div>Repos</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="font-bold text-white">${user.followers}</div>
+                        <div>Followers</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="font-bold text-white">${user.following}</div>
+                        <div>Following</div>
+                    </div>
+                </div>
+            `;
+            statsContainer.appendChild(statsCard);
+        }
+        
+        console.log('GitHub profile loaded successfully');
+        
+    } catch (error) {
+        console.error('Error fetching GitHub profile:', error);
+        // Keep default avatar if API fails
+        const profileImage = document.querySelector('#about .w-32.h-32');
+        if (profileImage) {
+            profileImage.innerHTML = `
+                <div class="w-32 h-32 bg-primary rounded-full flex items-center justify-center border-4 border-primary/30">
+                    <i class="fas fa-code text-4xl text-white"></i>
+                </div>
+            `;
+        }
+    }
+}
 
 // Fetch GitHub repositories
 async function fetchGitHubProjects() {
@@ -436,7 +538,8 @@ const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
 
 // Add some additional interactive features
 document.addEventListener('DOMContentLoaded', () => {
-    // Load GitHub projects
+    // Load GitHub profile and projects
+    fetchGitHubProfile();
     fetchGitHubProjects();
     
     // Retry button for projects
